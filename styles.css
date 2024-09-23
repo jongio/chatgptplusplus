@@ -1,0 +1,33 @@
+/* styles.css */
+
+/* Style for the pinned section header */
+.pinned-header {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+  
+  /* Style for the pinned list */
+  .pinned-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  /* Style for each pinned chat item */
+  .pinned-chat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    cursor: pointer;
+  }
+  
+  /* Style for the unpin button */
+  .unpin-button {
+    background: none;
+    border: none;
+    color: red;
+    cursor: pointer;
+  }
+  
