@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "ChatGPT Pin Extension",
-    "version": "1.0",
-    "description": "Adds a pin functionality to ChatGPT chats.",
+    "name": "ChatGPT++",
+    "version": "0.1",
+    "description": "Adds features to ChatGPT interface.",
     "permissions": ["storage", "scripting"],
     "host_permissions": ["https://chat.openai.com/*", "https://chatgpt.com/*"],
     "content_scripts": [
