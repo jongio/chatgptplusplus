@@ -19,6 +19,12 @@ To install the extension:
 - After installing the extension, the pinned section will automatically be added to the ChatGPT interface.
 - You can pin/unpin items by selecting the "Pin" or "Unpin" option from the menu associated with each chat history item.
 
+### Pin Icon:
+![Pin Icon](./images/pin.png)
+
+### Unpin Icon:
+![Unpin Icon](./images/unpin.png)
+
 ## Known Issues
 
 - **Light Mode Only:**  
@@ -35,7 +41,6 @@ To install the extension:
 
 - **OpenAI Mobile Application Compatibility:**  
   This extension does not work with the OpenAI mobile application.
-
 
 ## Contributing
 Feel free to submit issues or pull requests to contribute to the project!

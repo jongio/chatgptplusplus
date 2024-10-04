@@ -33,7 +33,8 @@ function Zip-Folder {
         Where-Object { 
             $_.FullName -notlike "*.zip" -and 
             $_.FullName -notlike "*\.git\*" -and
-            $_.FullName -notlike "*\.dist\*" 
+            $_.FullName -notlike "*\.dist\*" -and
+            $_.FullName -notlike "*\images\*" 
         }).FullName -DestinationPath $zipFilePath -Update
 }
 
