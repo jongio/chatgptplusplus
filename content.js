@@ -2,38 +2,47 @@ console.log("ChatGPT Extension content script loaded successfully. Version 26");
 
 let activeItemSelected = null; // Variable to store the GUID of the last clicked history item
 
-// Wait for the navigation or page reload to trigger the pinned section addition
-window.addEventListener('DOMContentLoaded', function () {
-  console.log("Page loaded, restoring pinned items.");
-  waitForNavToLoad();
-});
-
-// Use MutationObserver to detect changes in the content such as navigation or page refresh
-const observerForPageReload = new MutationObserver(() => {
-  if (document.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div')) {
-    console.log("Detected navigation or refresh event. Restoring pinned items.");
-    waitForNavToLoad(); // Reapply pinned section and listeners
-  }
-});
-
-// Start observing for DOM changes (such as page reload or navigation)
-observerForPageReload.observe(document.body, {
-  childList: true,
-  subtree: true
-});
-
-// Function to check when the navigation is loaded and insert the pinned section
-function waitForNavToLoad() {
-  const checkNavExistence = setInterval(() => {
-    const targetDiv = document.querySelector("nav > div:nth-child(2) > div:nth-child(3) > div");
-    if (targetDiv) {
-      clearInterval(checkNavExistence);
-      addPinnedSection(targetDiv);  // Only add the section if it doesn't exist    
-      addMenuButtonListeners(); // Add click handlers after the pinned section is added
-      observeForNewHistoryItems(); // Start observing for new history items
+const observer = new MutationObserver((mutationsList) => {
+  mutationsList.forEach(mutation => {
+    // Check if the target element is added
+    let targetDiv = document.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div');
+    if (targetDiv && !document.getElementById('pinned-section')) {
+      console.log('Target element found, adding pinned section...');
+      addPinnedSection(targetDiv); // Function to add the pinned section
     }
-  }, 500); // Check every 500ms until the nav structure is fully loaded
-}
+
+    // Check if the target element has been removed
+    mutation.removedNodes.forEach(removedNode => {
+      if (removedNode.querySelector && removedNode.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div')) {
+        console.log('Target element removed, waiting for re-addition...');
+        // Start observing the document for the re-addition of the target element
+        const reAddObserver = new MutationObserver(() => {
+          const readdedDiv = document.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div');
+          if (readdedDiv && !document.getElementById('pinned-section')) {
+            console.log('Target element re-added, adding pinned section...');
+            addPinnedSection(readdedDiv); // Re-add the pinned section
+            reAddObserver.disconnect(); // Stop observing once it's re-added
+          }
+        });
+        // Start observing the document's body for re-addition
+        reAddObserver.observe(document.body, { childList: true, subtree: true });
+      }
+    });
+
+    // Check for added or removed `li` elements with data-testid^='history-item'
+    mutation.addedNodes.forEach(addedNode => {
+      if (addedNode.nodeType === 1) { // Ensure it's an element node
+        if (addedNode.matches && addedNode.matches("li[data-testid^='history-item']")) {
+          console.log('New history item added, attaching menu button listeners...');
+          addMenuButtonListeners(); // Call to add listeners
+        }
+      }
+    });
+  });
+});
+
+// Start observing the document's body for child elements being added or removed
+observer.observe(document.body, { childList: true, subtree: true });
 
 // Function to add the pinned section (if not already added)
 function addPinnedSection(targetDiv) {
@@ -76,16 +85,14 @@ function addMenuButtonListeners() {
   const historyItems = document.querySelectorAll("li[data-testid^='history-item']");
 
   historyItems.forEach((item) => {
-    const button = item.querySelector("button[aria-haspopup='menu']");
     const anchor = item.querySelector("a[href^='/c/']"); // Find the anchor sibling with the href
-    const grandparent = button?.parentElement?.parentElement; // Get the grandparent node
+    const grandparent = anchor?.parentElement?.parentElement; // Get the grandparent node
 
-    if (grandparent && button && anchor && !grandparent.dataset.listenerAdded) {
+    if (grandparent && anchor && !grandparent.dataset.listenerAdded) {
       grandparent.dataset.listenerAdded = "true"; // Prevent duplicate listeners
 
       // Add click event to the grandparent node
       grandparent.addEventListener("click", (event) => {
-        // Check if the clicked target is the button
           const href = anchor.getAttribute("href"); // Get the href attribute from the <a> tag
           const match = href.match(/\/c\/([a-f0-9\-]+)/); // Extract the GUID using regex
 
@@ -101,7 +108,6 @@ function addMenuButtonListeners() {
               console.log(`Active item selected: ${activeItemSelected}`);
             }
 
-            // After the button click, find the menu by searching for the div with data-radix-popper-content-wrapper
             setTimeout(() => {
               const menuWrapper = document.querySelector("[data-radix-popper-content-wrapper]");
               if (menuWrapper) {
@@ -329,13 +335,3 @@ function unpinHistoryItemByGuid(guid) {
   }
 }
 
-// Observe new history items being dynamically added to the page
-function observeForNewHistoryItems() {
-  const bodyElement = document.querySelector("body");
-
-  const observerForHistoryItems = new MutationObserver(() => {
-    addMenuButtonListeners(); // Add click listeners to new history items
-  });
-
-  observerForHistoryItems.observe(bodyElement, { childList: true, subtree: true });
-}
