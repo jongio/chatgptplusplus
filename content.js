@@ -73,7 +73,7 @@ function togglePinnedSectionVisibility() {
 
 // Function to add click listeners to the grandparent of buttons within the history items
 function addMenuButtonListeners() {
-  const historyItems = document.querySelectorAll("li[data-testid='history-item']");
+  const historyItems = document.querySelectorAll("li[data-testid^='history-item']");
 
   historyItems.forEach((item) => {
     const button = item.querySelector("button[aria-haspopup='menu']");
