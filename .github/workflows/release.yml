@@ -1,5 +1,11 @@
 name: ChatGPT++ Release
 
+# Set explicit permissions for the workflow
+permissions:
+  contents: write    # Allows read and write access to repository contents, including pushing tags
+  id-token: write    # Required for certain authentication flows (optional based on your needs)
+  pull-requests: write  # If your workflow interacts with pull requests (optional)
+
 # Trigger the workflow on push to the main branch when manifest.json changes
 # and allow manual triggering via the GitHub UI
 on:
@@ -24,8 +30,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0          # Fetch all history for all branches and tags
-          persist-credentials: true  # Persist the GITHUB_TOKEN for git push
+          fetch-depth: 0              # Fetch all history for all branches and tags
+          persist-credentials: true   # Persist the GITHUB_TOKEN for git push
 
       # 2. Retrieve the current version from manifest.json
       - name: Get Current Version
