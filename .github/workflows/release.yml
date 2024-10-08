@@ -52,7 +52,7 @@ jobs:
               $previous_version = '0.0.0'
           } else {
               try {
-                  $previous_manifest = git show "${previousCommit}:./manifest.json" 2>$null
+                  $previous_manifest = git show "${previousCommit}:./manifest.json" 2> $null
                   if ($previous_manifest) {
                       $previous_manifest_json = $previous_manifest | ConvertFrom-Json
                       $previous_version = $previous_manifest_json.version
@@ -158,7 +158,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # Check if tag already exists to prevent errors
           $tag = "v$version"
-          if (git rev-parse "$tag" >/dev/null 2>&1) {
+          if (git rev-parse "$tag" > $null 2>&1) {
               Write-Output "Tag $tag already exists. Skipping tag creation."
           } else {
               git tag -a "$tag" -m "Release version $version"
@@ -177,7 +177,7 @@ jobs:
           release_name: "ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}"
           body: |
             ## ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}
-  
+
             ### What's Changed
             - Describe the changes in this release here.
           draft: false
