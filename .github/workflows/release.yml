@@ -46,7 +46,7 @@ jobs:
         id: previous_version
         shell: pwsh
         run: |
-          $previousCommit = '${{ github.event.before }}'
+          $previousCommit = "${{ github.event.before }}"
           if ($previousCommit -eq '0000000000000000000000000000000000000000') {
               # This is the initial commit
               $previous_version = '0.0.0'
@@ -73,7 +73,7 @@ jobs:
         id: trigger_type
         shell: pwsh
         run: |
-          if (${{ github.event_name }} -eq 'workflow_dispatch') {
+          if ("${{ github.event_name }}" -eq 'workflow_dispatch') {
               $manual = $true
           } else {
               $manual = $false
@@ -174,10 +174,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: "v${{ steps.version_decision.outputs.final_version }}"
-          release_name: "v${{ steps.version_decision.outputs.final_version }}"
+          release_name: "ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}"
           body: |
-            ## Release v${{ steps.version_decision.outputs.final_version }}
-
+            ## ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}
+  
             ### What's Changed
             - Describe the changes in this release here.
           draft: false
