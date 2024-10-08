@@ -2,9 +2,9 @@ name: ChatGPT++ Release
 
 # Set explicit permissions for the workflow
 permissions:
-  contents: write    # Allows read and write access to repository contents, including pushing tags
-  id-token: write    # Required for certain authentication flows (optional based on your needs)
-  pull-requests: write  # If your workflow interacts with pull requests (optional)
+  contents: write        # Allows read and write access to repository contents, including pushing tags
+  id-token: write        # Required for certain authentication flows (optional based on your needs)
+  pull-requests: write   # If your workflow interacts with pull requests (optional)
 
 # Trigger the workflow on push to the main branch when manifest.json changes
 # and allow manual triggering via the GitHub UI
@@ -136,7 +136,35 @@ jobs:
               }
           }
 
-      # 6. Run the packaging script if the version has incremented or manually triggered
+      # 6. Get Commit Messages since the last release
+      - name: Get Commit Messages Since Last Release
+        id: commit_messages
+        shell: pwsh
+        run: |
+          # Fetch all tags to ensure they are available
+          git fetch --tags
+
+          # Get the latest tag
+          $lastTag = git describe --tags --abbrev=0 2> $null
+          if ($lastTag) {
+              Write-Output "Last tag found: $lastTag"
+              # Get commit messages since the last tag
+              $commitMessages = git log "$lastTag"..HEAD --pretty=format:"- %s"
+          } else {
+              Write-Output "No previous tags found. Listing all commit messages."
+              # No tags found, list all commit messages
+              $commitMessages = git log --pretty=format:"- %s"
+          }
+
+          if ([string]::IsNullOrWhiteSpace($commitMessages)) {
+              $commitMessages = "No commit messages found since the last release."
+          }
+
+          Write-Output "Commit messages since last release:"
+          Write-Output $commitMessages
+          echo "commit_messages=$commitMessages" >> $env:GITHUB_OUTPUT
+
+      # 7. Run the packaging script if the version has incremented or manually triggered
       - name: Run package.ps1
         id: package
         if: steps.version_decision.outputs.incremented == 'true'
@@ -154,7 +182,7 @@ jobs:
               Write-Error "Expected zip file not found: $zipPath"
           }
 
-      # 7. Create Git Tag
+      # 8. Create Git Tag
       - name: Create Git Tag
         if: steps.version_decision.outputs.incremented == 'true'
         shell: pwsh
@@ -173,7 +201,7 @@ jobs:
               git push origin "$tag"
           }
 
-      # 8. Create GitHub Release
+      # 9. Create GitHub Release
       - name: Create GitHub Release
         if: steps.version_decision.outputs.incremented == 'true'
         id: create_release
@@ -187,11 +215,11 @@ jobs:
             ## ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}
 
             ### What's Changed
-            - Describe the changes in this release here.
+            ${{ steps.commit_messages.outputs.commit_messages }}
           draft: false
           prerelease: false
 
-      # 9. Upload the generated .zip file as a release asset
+      # 10. Upload the generated .zip file as a release asset
       - name: Upload Release Asset
         if: steps.version_decision.outputs.incremented == 'true'
         uses: actions/upload-release-asset@v1
