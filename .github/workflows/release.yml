@@ -74,7 +74,7 @@ jobs:
               }
           }
           Write-Output "Previous version: $previous_version"
-          echo "version=$previous_version" >> $env:GITHUB_OUTPUT
+          echo "previous_version=$previous_version" >> $env:GITHUB_OUTPUT
 
       # 4. Determine if the workflow was triggered by a push or manually
       - name: Determine Trigger Type
@@ -110,7 +110,7 @@ jobs:
           } else {
               # Automatic trigger: check if version has incremented
               $current = "${{ steps.current_version.outputs.version }}"
-              $previous = "${{ steps.previous_version.outputs.version }}"
+              $previous = "${{ steps.previous_version.outputs.previous_version }}"
               Write-Output "Current: $current, Previous: $previous"
 
               function Compare-Version($v1, $v2) {
@@ -185,14 +185,15 @@ jobs:
       # 8. Create or Update GitHub Release
       - name: Create or Update GitHub Release
         if: steps.version_decision.outputs.incremented == 'true'
+        id: create_or_update_github_release
         uses: actions/github-script@v6
         with:
           script: |
+            const { context, github } = require('@actions/github');
             const tag = 'v${{ steps.version_decision.outputs.final_version }}';
             const releaseName = `ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}`;
             const body = `## ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}\n\n### What's Changed\n${{ steps.commit_messages.outputs.commit_messages }}`;
 
-            // Attempt to get the existing release by tag
             let release;
             try {
               const { data } = await github.rest.repos.getReleaseByTag({
@@ -210,9 +211,11 @@ jobs:
               }
             }
 
+            let release_id;
+
             if (release) {
               // Update the existing release
-              await github.rest.repos.updateRelease({
+              const updatedRelease = await github.rest.repos.updateRelease({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 release_id: release.id,
@@ -222,9 +225,10 @@ jobs:
                 prerelease: false
               });
               console.log(`Updated release: ${releaseName}`);
+              release_id = updatedRelease.id;
             } else {
               // Create a new release
-              await github.rest.repos.createRelease({
+              const newRelease = await github.rest.repos.createRelease({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag_name: tag,
@@ -234,16 +238,41 @@ jobs:
                 prerelease: false
               });
               console.log(`Created new release: ${releaseName}`);
+              release_id = newRelease.id;
             }
 
-      # 9. Upload the generated .zip file as a release asset
-      - name: Upload Release Asset
-        if: steps.version_decision.outputs.incremented == 'true'
-        uses: actions/upload-release-asset@v1
+            // Set outputs using Environment Files
+            const fs = require('fs');
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `release_id=${release_id}\n`);
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 9. Upload the generated .zip file as a release asset using github-script
+      - name: Upload Release Asset
+        if: steps.version_decision.outputs.incremented == 'true'
+        uses: actions/github-script@v6
         with:
-          upload_url: ${{ steps.create_or_update_github_release.outputs.upload_url }}
-          asset_path: ${{ steps.package.outputs.zip_file }}
-          asset_name: "chatgptplusplus-${{ steps.version_decision.outputs.final_version }}.zip"
-          asset_content_type: application/zip
+          script: |
+            const { context, github } = require('@actions/github');
+            const fs = require('fs');
+            const path = require('path');
+
+            const release_id = '${{ steps.create_or_update_github_release.outputs.release_id }}';
+            const filePath = '${{ steps.package.outputs.zip_file }}';
+            const fileName = path.basename(filePath);
+            const contentType = 'application/zip';
+            const fileData = fs.readFileSync(filePath);
+
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release_id,
+              name: fileName,
+              data: fileData,
+              headers: {
+                'content-type': contentType,
+                'content-length': fileData.length
+              }
+            });
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
