@@ -1,0 +1,196 @@
+name: ChatGPT++ Release
+
+# Trigger the workflow on push to the main branch when manifest.json changes
+# and allow manual triggering via the GitHub UI
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'manifest.json'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Specify the version to release (optional)'
+        required: false
+        default: ''
+
+jobs:
+  release:
+    runs-on: windows-latest  # Use a Windows runner for PowerShell
+
+    steps:
+      # 1. Checkout the repository with history to access previous commits
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2  # Fetch last 2 commits to access previous manifest.json
+
+      # 2. Retrieve the current version from manifest.json
+      - name: Get Current Version
+        id: current_version
+        shell: pwsh
+        run: |
+          $manifestPath = 'manifest.json'
+          if (Test-Path $manifestPath) {
+              $manifest = Get-Content -Raw -Path $manifestPath | ConvertFrom-Json
+              $version = $manifest.version
+              Write-Output "Current version: $version"
+              echo "version=$version" >> $env:GITHUB_OUTPUT
+          } else {
+              Write-Error "manifest.json not found."
+          }
+
+      # 3. Retrieve the previous version from the last commit's manifest.json
+      - name: Get Previous Version
+        id: previous_version
+        shell: pwsh
+        run: |
+          $previousCommit = '${{ github.event.before }}'
+          if ($previousCommit -eq '0000000000000000000000000000000000000000') {
+              # This is the initial commit
+              $previous_version = '0.0.0'
+          } else {
+              try {
+                  $previous_manifest = git show "$previousCommit:./manifest.json" 2>$null
+                  if ($previous_manifest) {
+                      $previous_manifest_json = $previous_manifest | ConvertFrom-Json
+                      $previous_version = $previous_manifest_json.version
+                  } else {
+                      # manifest.json does not exist in the previous commit
+                      $previous_version = '0.0.0'
+                  }
+              } catch {
+                  # Error accessing previous manifest.json
+                  $previous_version = '0.0.0'
+              }
+          }
+          Write-Output "Previous version: $previous_version"
+          echo "version=$previous_version" >> $env:GITHUB_OUTPUT
+
+      # 4. Determine if the workflow was triggered by a push or manually
+      - name: Determine Trigger Type
+        id: trigger_type
+        shell: pwsh
+        run: |
+          if (${{ github.event_name }} -eq 'workflow_dispatch') {
+              $manual = $true
+          } else {
+              $manual = $false
+          }
+          Write-Output "Manual trigger: $manual"
+          echo "manual_trigger=$manual" >> $env:GITHUB_OUTPUT
+
+      # 5. Compare the current and previous versions or use manual version
+      - name: Determine Version Increment or Use Manual Version
+        id: version_decision
+        shell: pwsh
+        run: |
+          $manual_trigger = "${{ steps.trigger_type.outputs.manual_trigger }}"
+          if ($manual_trigger -eq 'True') {
+              $manual_version = "${{ github.event.inputs.version }}"
+              if ($manual_version -ne '') {
+                  Write-Output "Manual version specified: $manual_version"
+                  echo "final_version=$manual_version" >> $env:GITHUB_OUTPUT
+              } else {
+                  # If no manual version is specified, use the current version
+                  $current = "${{ steps.current_version.outputs.version }}"
+                  Write-Output "No manual version specified. Using current version: $current"
+                  echo "final_version=$current" >> $env:GITHUB_OUTPUT
+              }
+              echo "incremented=true" >> $env:GITHUB_OUTPUT  # Treat as incremented for manual trigger
+          } else {
+              # Automatic trigger: check if version has incremented
+              $current = "${{ steps.current_version.outputs.version }}"
+              $previous = "${{ steps.previous_version.outputs.version }}"
+              Write-Output "Current: $current, Previous: $previous"
+
+              function Compare-Version($v1, $v2) {
+                  try {
+                      [System.Version]$version1 = $v1
+                      [System.Version]$version2 = $v2
+                      return $version1.CompareTo($version2)
+                  } catch {
+                      # If version format is invalid, treat as not incremented
+                      return -1
+                  }
+              }
+
+              $cmp = Compare-Version $current $previous
+              if ($cmp -gt 0) {
+                  Write-Output "Version incremented."
+                  echo "incremented=true" >> $env:GITHUB_OUTPUT
+                  echo "final_version=$current" >> $env:GITHUB_OUTPUT
+              } else {
+                  Write-Output "Version not incremented."
+                  echo "incremented=false" >> $env:GITHUB_OUTPUT
+                  echo "final_version=" >> $env:GITHUB_OUTPUT
+              }
+          }
+
+      # 6. Run the packaging script if the version has incremented or manually triggered
+      - name: Run package.ps1
+        id: package
+        if: steps.version_decision.outputs.incremented == 'true'
+        shell: pwsh
+        run: |
+          ./package.ps1
+          # Assuming package.ps1 outputs the zip to the .dist folder
+          $version = "${{ steps.version_decision.outputs.final_version }}"
+          $zipFile = "chatgptplusplus-$version.zip"
+          $zipPath = ".dist\$zipFile"
+          if (Test-Path $zipPath) {
+              Write-Output "Zip file: $zipPath"
+              echo "zip_file=$zipPath" >> $env:GITHUB_OUTPUT
+          } else {
+              Write-Error "Expected zip file not found: $zipPath"
+          }
+
+      # 7. Create Git Tag
+      - name: Create Git Tag
+        if: steps.version_decision.outputs.incremented == 'true'
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Provided by GitHub Actions
+        run: |
+          $version = "${{ steps.version_decision.outputs.final_version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Check if tag already exists to prevent errors
+          $tag = "v$version"
+          if (git rev-parse "$tag" >/dev/null 2>&1) {
+              Write-Output "Tag $tag already exists. Skipping tag creation."
+          } else {
+              git tag -a "$tag" -m "Release version $version"
+              git push origin "$tag"
+          }
+
+      # 8. Create GitHub Release
+      - name: Create GitHub Release
+        if: steps.version_decision.outputs.incremented == 'true'
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ steps.version_decision.outputs.final_version }}"
+          release_name: "v${{ steps.version_decision.outputs.final_version }}"
+          body: |
+            ## Release v${{ steps.version_decision.outputs.final_version }}
+
+            ### What's Changed
+            - Describe the changes in this release here.
+          draft: false
+          prerelease: false
+
+      # 9. Upload the generated .zip file as a release asset
+      - name: Upload Release Asset
+        if: steps.version_decision.outputs.incremented == 'true'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.package.outputs.zip_file }}
+          asset_name: "chatgptplusplus-${{ steps.version_decision.outputs.final_version }}.zip"
+          asset_content_type: application/zip

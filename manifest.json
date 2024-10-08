@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "ChatGPT++",
-    "version": "0.1",
+    "version": "0.2",
     "description": "Adds features to ChatGPT interface.",
     "permissions": ["storage", "scripting"],
     "host_permissions": ["https://chat.openai.com/*", "https://chatgpt.com/*"],

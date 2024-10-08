@@ -1,0 +1,15 @@
+# Ignore specific files
+*.zip
+*.ps1
+.gitignore
+package.ps1
+
+# Ignore folders
+.git/
+.dist/
+images/
+.github/
+
+# Ignore all node_modules
+node_modules/
+.packageignore
