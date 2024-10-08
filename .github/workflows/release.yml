@@ -174,7 +174,7 @@ jobs:
           # Assuming package.ps1 outputs the zip to the .dist folder
           $version = "${{ steps.version_decision.outputs.final_version }}"
           $zipFile = "chatgptplusplus-$version.zip"
-          $zipPath = ".dist\$zipFile"
+          $zipPath = Join-Path -Path '.dist' -ChildPath $zipFile
           if (Test-Path $zipPath) {
               Write-Output "Zip file: $zipPath"
               echo "zip_file=$zipPath" >> $env:GITHUB_OUTPUT
@@ -195,13 +195,12 @@ jobs:
 
             let release;
             try {
-              const { data } = await github.rest.repos.getReleaseByTag({
+              release = await github.rest.repos.getReleaseByTag({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag: tag
               });
-              release = data;
-              console.log(`Found existing release: ${release.name}`);
+              console.log(`Found existing release: ${release.data.name}`);
             } catch (error) {
               if (error.status === 404) {
                 console.log(`No existing release found for tag ${tag}. Creating a new release.`);
@@ -217,14 +216,14 @@ jobs:
               const updatedRelease = await github.rest.repos.updateRelease({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                release_id: release.id,
+                release_id: release.data.id,
                 name: releaseName,
                 body: body,
                 draft: false,
                 prerelease: false
               });
               console.log(`Updated release: ${releaseName}`);
-              release_id = updatedRelease.id;
+              release_id = updatedRelease.data.id;
             } else {
               // Create a new release
               const newRelease = await github.rest.repos.createRelease({
@@ -237,7 +236,7 @@ jobs:
                 prerelease: false
               });
               console.log(`Created new release: ${releaseName}`);
-              release_id = newRelease.id;
+              release_id = newRelease.data.id;
             }
 
             // Set outputs using Environment Files
