@@ -174,7 +174,7 @@ jobs:
           # Assuming package.ps1 outputs the zip to the .dist folder
           $version = "${{ steps.version_decision.outputs.final_version }}"
           $zipFile = "chatgptplusplus-$version.zip"
-          $zipPath = Join-Path -Path '.dist' -ChildPath $zipFile
+          $zipPath = ".dist/$zipFile"
           if (Test-Path $zipPath) {
               Write-Output "Zip file: $zipPath"
               echo "zip_file=$zipPath" >> $env:GITHUB_OUTPUT
