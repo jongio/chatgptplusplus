@@ -251,7 +251,7 @@ jobs:
       # 9. Upload the generated .zip file as a release asset using github-script
       - name: Upload Release Asset
         if: steps.version_decision.outputs.incremented == 'true'
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7.0.1
         with:
           script: |
             const fs = require('fs');
