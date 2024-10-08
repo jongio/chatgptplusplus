@@ -59,7 +59,7 @@ jobs:
               $previous_version = '0.0.0'
           } else {
               try {
-                  # Use ${previousCommit} to delimit the variable name
+                  # Attempt to get manifest.json from the previous commit
                   $previous_manifest = git show "${previousCommit}:./manifest.json" 2> $null
                   if ($previous_manifest) {
                       $previous_manifest_json = $previous_manifest | ConvertFrom-Json
@@ -189,7 +189,6 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const { context, github } = require('@actions/github');
             const tag = 'v${{ steps.version_decision.outputs.final_version }}';
             const releaseName = `ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}`;
             const body = `## ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}\n\n### What's Changed\n${{ steps.commit_messages.outputs.commit_messages }}`;
@@ -253,7 +252,6 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const { context, github } = require('@actions/github');
             const fs = require('fs');
             const path = require('path');
 
