@@ -182,51 +182,68 @@ jobs:
               Write-Error "Expected zip file not found: $zipPath"
           }
 
-      # 8. Create Git Tag
-      - name: Create Git Tag
+      # 8. Create or Update GitHub Release
+      - name: Create or Update GitHub Release
         if: steps.version_decision.outputs.incremented == 'true'
-        shell: pwsh
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Provided by GitHub Actions
-        run: |
-          $version = "${{ steps.version_decision.outputs.final_version }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Check if tag already exists to prevent errors
-          $tag = "v$version"
-          if (git rev-parse "$tag" > $null 2>&1) {
-              Write-Output "Tag $tag already exists. Skipping tag creation."
-          } else {
-              git tag -a "$tag" -m "Release version $version"
-              git push origin "$tag"
-          }
-
-      # 9. Create GitHub Release
-      - name: Create GitHub Release
-        if: steps.version_decision.outputs.incremented == 'true'
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: actions/github-script@v6
         with:
-          tag_name: "v${{ steps.version_decision.outputs.final_version }}"
-          release_name: "ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}"
-          body: |
-            ## ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}
+          script: |
+            const tag = 'v${{ steps.version_decision.outputs.final_version }}';
+            const releaseName = `ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}`;
+            const body = `## ChatGPT++ Release v${{ steps.version_decision.outputs.final_version }}\n\n### What's Changed\n${{ steps.commit_messages.outputs.commit_messages }}`;
 
-            ### What's Changed
-            ${{ steps.commit_messages.outputs.commit_messages }}
-          draft: false
-          prerelease: false
+            // Attempt to get the existing release by tag
+            let release;
+            try {
+              const { data } = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag
+              });
+              release = data;
+              console.log(`Found existing release: ${release.name}`);
+            } catch (error) {
+              if (error.status === 404) {
+                console.log(`No existing release found for tag ${tag}. Creating a new release.`);
+              } else {
+                throw error;
+              }
+            }
 
-      # 10. Upload the generated .zip file as a release asset
+            if (release) {
+              // Update the existing release
+              await github.rest.repos.updateRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: release.id,
+                name: releaseName,
+                body: body,
+                draft: false,
+                prerelease: false
+              });
+              console.log(`Updated release: ${releaseName}`);
+            } else {
+              // Create a new release
+              await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tag,
+                name: releaseName,
+                body: body,
+                draft: false,
+                prerelease: false
+              });
+              console.log(`Created new release: ${releaseName}`);
+            }
+
+      # 9. Upload the generated .zip file as a release asset
       - name: Upload Release Asset
         if: steps.version_decision.outputs.incremented == 'true'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          upload_url: ${{ steps.create_or_update_github_release.outputs.upload_url }}
           asset_path: ${{ steps.package.outputs.zip_file }}
           asset_name: "chatgptplusplus-${{ steps.version_decision.outputs.final_version }}.zip"
           asset_content_type: application/zip
