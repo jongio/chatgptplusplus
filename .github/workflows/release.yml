@@ -28,7 +28,7 @@ jobs:
     steps:
       # 1. Checkout the repository with full history to access all commits and tags
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.2.1
         with:
           fetch-depth: 0              # Fetch all history for all branches and tags
           persist-credentials: true   # Persist the GITHUB_TOKEN for git push
@@ -189,7 +189,7 @@ jobs:
       - name: Create or Update GitHub Release
         if: steps.version_decision.outputs.incremented == 'true'
         id: create_or_update_github_release
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7.0.1
         with:
           script: |
             const tag = 'v${{ steps.version_decision.outputs.final_version }}';
