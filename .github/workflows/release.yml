@@ -174,7 +174,7 @@ jobs:
           # Assuming package.ps1 outputs the zip to the .dist folder
           $version = "${{ steps.version_decision.outputs.final_version }}"
           $zipFile = "chatgptplusplus-$version.zip"
-          $zipPath = ".dist/$zipFile"
+          $zipPath = Join-Path -Path '.dist' -ChildPath $zipFile
           if (Test-Path $zipPath) {
               Write-Output "Zip file: $zipPath"
               echo "zip_file=$zipPath" >> $env:GITHUB_OUTPUT
@@ -260,6 +260,26 @@ jobs:
             const contentType = 'application/zip';
             const fileData = fs.readFileSync(filePath);
 
+            // Check if the asset already exists
+            const existingAssets = await github.rest.repos.listReleaseAssets({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release_id
+            });
+
+            const duplicateAsset = existingAssets.data.find(asset => asset.name === fileName);
+
+            if (duplicateAsset) {
+              console.log(`Asset ${fileName} already exists. Deleting the existing asset.`);
+              await github.rest.repos.deleteReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: duplicateAsset.id
+              });
+              console.log(`Deleted existing asset: ${fileName}`);
+            }
+
+            // Upload the new asset
             await github.rest.repos.uploadReleaseAsset({
               owner: context.repo.owner,
               repo: context.repo.repo,
