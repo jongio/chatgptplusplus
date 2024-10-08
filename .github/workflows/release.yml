@@ -52,7 +52,7 @@ jobs:
               $previous_version = '0.0.0'
           } else {
               try {
-                  $previous_manifest = git show "$previousCommit:./manifest.json" 2>$null
+                  $previous_manifest = git show "${previousCommit}:./manifest.json" 2>$null
                   if ($previous_manifest) {
                       $previous_manifest_json = $previous_manifest | ConvertFrom-Json
                       $previous_version = $previous_manifest_json.version

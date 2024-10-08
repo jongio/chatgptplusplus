@@ -10,10 +10,11 @@ ChatGPT++ is a browser extension that enhances the ChatGPT interface with additi
 
 ## Installation
 To install the extension:
-1. Download the extension from the repository.
-2. Load it as an unpacked extension in your browser.
-   - For Chrome/Edge: Go to `chrome://extensions/` or `edge://extensions/`, enable developer mode, and load the unpacked extension from the folder.
-3. Enjoy enhanced features in ChatGPT!
+1. Download the latest extension from the [releases page](./releases).
+2. Extract the downloaded zip file.
+3. Load it as an unpacked extension in your browser:
+   - **For Chrome/Edge**: Go to `chrome://extensions/` or `edge://extensions/`, enable developer mode, and load the unpacked extension from the extracted folder.
+4. Enjoy enhanced features in ChatGPT!
 
 ## Usage
 - After installing the extension, the pinned section will automatically be added to the ChatGPT interface.
