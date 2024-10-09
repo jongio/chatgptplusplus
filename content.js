@@ -3,64 +3,141 @@ console.log("ChatGPT Extension content script loaded successfully. Version 26");
 let activeItemSelected = null; // Variable to store the GUID of the last clicked history item
 console.log("Initialized activeItemSelected to null");
 
-const observer = new MutationObserver((mutationsList) => {
-  console.log(`MutationObserver triggered with ${mutationsList.length} mutations`);
-  mutationsList.forEach((mutation, index) => {
-    console.log(`Processing mutation ${index + 1}/${mutationsList.length}:`, mutation);
+// const observer = new MutationObserver((mutationsList) => {
+//   console.log(`MutationObserver triggered with ${mutationsList.length} mutations`);
+//   mutationsList.forEach((mutation, index) => {
+//     console.log(`Processing mutation ${index + 1}/${mutationsList.length}:`, mutation);
     
-    // Check if the target element is added
-    let targetDiv = document.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div');
-    if (targetDiv && !document.getElementById('pinned-section')) {
+//     // Check if the target element is added
+//     let targetDiv = document.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div');
+//     if (targetDiv && !document.getElementById('pinned-section')) {
+//       console.log('Target element found, adding pinned section...');
+//       addPinnedSection(targetDiv); // Function to add the pinned section
+//     }
+
+//     // Check if the target element has been removed
+//     mutation.removedNodes.forEach((removedNode, removedIndex) => {
+//       console.log(`Checking removed node ${removedIndex + 1}/${mutation.removedNodes.length}:`, removedNode);
+//       if (removedNode.querySelector && removedNode.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div')) {
+//         console.log('Target element removed, waiting for re-addition...');
+//         // Start observing the document for the re-addition of the target element
+//         const reAddObserver = new MutationObserver((reMutationsList) => {
+//           console.log(`reAddObserver triggered with ${reMutationsList.length} mutations`);
+//           reMutationsList.forEach((reMutation, reIndex) => {
+//             console.log(`Processing re-add mutation ${reIndex + 1}/${reMutationsList.length}:`, reMutation);
+//             const readdedDiv = document.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div');
+//             if (readdedDiv && !document.getElementById('pinned-section')) {
+//               console.log('Target element re-added, adding pinned section...');
+//               addPinnedSection(readdedDiv); // Re-add the pinned section
+//               reAddObserver.disconnect(); // Stop observing once it's re-added
+//               console.log('reAddObserver disconnected');
+//             }
+//           });
+//         });
+//         // Start observing the document's body for re-addition
+//         reAddObserver.observe(document.body, { childList: true, subtree: true });
+//         console.log('Started reAddObserver to watch for target element re-addition');
+//       }
+//     });
+
+//     // Check for added or removed `li` elements with data-testid^='history-item'
+//     mutation.addedNodes.forEach((addedNode, addedIndex) => {
+//       console.log(`Checking added node ${addedIndex + 1}/${mutation.addedNodes.length}:`, addedNode);
+//       if (addedNode.nodeType === 1) { // Ensure it's an element node
+//         if (addedNode.matches && addedNode.matches("li[data-testid^='history-item']")) {
+//           console.log('New history item added, attaching menu button listeners...');
+//           addMenuButtonListeners(); // Call to add listeners
+//         }
+//       }
+//     });
+
+//     mutation.removedNodes.forEach((removedNode, removedIndex) => {
+//       console.log(`Checking removed node ${removedIndex + 1}/${mutation.removedNodes.length}:`, removedNode);
+//       // Additional logging can be added here if needed
+//     });
+//   });
+// });
+
+// // Start observing the document's body for child elements being added or removed
+// observer.observe(document.body, { childList: true, subtree: true });
+// console.log("Started MutationObserver on document.body");
+
+// Remove the MutationObserver code:
+// ---------------------------------
+// const observer = new MutationObserver((mutationsList) => {
+//   // ... existing observer callback ...
+// });
+
+// observer.observe(document.body, { childList: true, subtree: true });
+// console.log("Started MutationObserver on document.body");
+
+// Replace with the following polling mechanism:
+
+// Function to initialize polling
+function initializePolling() {
+  console.log("Initializing polling mechanism to monitor DOM changes...");
+
+  // Polling interval in milliseconds
+  const POLLING_INTERVAL = 1000; // 1 second
+
+  // Flag to track the presence of the targetDiv
+  let isPinnedSectionAdded = false;
+
+  // Function to check and add the pinned section
+  function checkAndAddPinnedSection() {
+    const targetDiv = document.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div');
+    const pinnedSection = document.getElementById('pinned-section');
+
+    if (targetDiv && !pinnedSection) {
       console.log('Target element found, adding pinned section...');
-      addPinnedSection(targetDiv); // Function to add the pinned section
+      addPinnedSection(targetDiv);
+      isPinnedSectionAdded = true;
+    } else if (!targetDiv && isPinnedSectionAdded) {
+      console.log('Target element removed, resetting pinned section flag...');
+      isPinnedSectionAdded = false;
     }
+  }
 
-    // Check if the target element has been removed
-    mutation.removedNodes.forEach((removedNode, removedIndex) => {
-      console.log(`Checking removed node ${removedIndex + 1}/${mutation.removedNodes.length}:`, removedNode);
-      if (removedNode.querySelector && removedNode.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div')) {
-        console.log('Target element removed, waiting for re-addition...');
-        // Start observing the document for the re-addition of the target element
-        const reAddObserver = new MutationObserver((reMutationsList) => {
-          console.log(`reAddObserver triggered with ${reMutationsList.length} mutations`);
-          reMutationsList.forEach((reMutation, reIndex) => {
-            console.log(`Processing re-add mutation ${reIndex + 1}/${reMutationsList.length}:`, reMutation);
-            const readdedDiv = document.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div');
-            if (readdedDiv && !document.getElementById('pinned-section')) {
-              console.log('Target element re-added, adding pinned section...');
-              addPinnedSection(readdedDiv); // Re-add the pinned section
-              reAddObserver.disconnect(); // Stop observing once it's re-added
-              console.log('reAddObserver disconnected');
-            }
-          });
-        });
-        // Start observing the document's body for re-addition
-        reAddObserver.observe(document.body, { childList: true, subtree: true });
-        console.log('Started reAddObserver to watch for target element re-addition');
-      }
-    });
+  // Function to check and attach menu button listeners
+  function checkAndAttachMenuListeners() {
+    const historyItems = document.querySelectorAll("li[data-testid^='history-item']");
+    if (historyItems.length > 0) {
+      console.log(`Found ${historyItems.length} history items, attaching menu button listeners...`);
+      addMenuButtonListeners();
+    }
+  }
 
-    // Check for added or removed `li` elements with data-testid^='history-item'
-    mutation.addedNodes.forEach((addedNode, addedIndex) => {
-      console.log(`Checking added node ${addedIndex + 1}/${mutation.addedNodes.length}:`, addedNode);
-      if (addedNode.nodeType === 1) { // Ensure it's an element node
-        if (addedNode.matches && addedNode.matches("li[data-testid^='history-item']")) {
-          console.log('New history item added, attaching menu button listeners...');
-          addMenuButtonListeners(); // Call to add listeners
-        }
-      }
-    });
+  // Function to handle re-adding the pinned section if it's removed
+  function monitorPinnedSection() {
+    const targetDiv = document.querySelector('nav > div:nth-child(2) > div:nth-child(3) > div');
+    const pinnedSection = document.getElementById('pinned-section');
 
-    mutation.removedNodes.forEach((removedNode, removedIndex) => {
-      console.log(`Checking removed node ${removedIndex + 1}/${mutation.removedNodes.length}:`, removedNode);
-      // Additional logging can be added here if needed
-    });
-  });
-});
+    if (targetDiv && !pinnedSection && !isPinnedSectionAdded) {
+      console.log('Target element re-added, adding pinned section...');
+      addPinnedSection(targetDiv);
+      isPinnedSectionAdded = true;
+    }
+  }
 
-// Start observing the document's body for child elements being added or removed
-observer.observe(document.body, { childList: true, subtree: true });
-console.log("Started MutationObserver on document.body");
+  // Start polling using setInterval
+  setInterval(() => {
+    checkAndAddPinnedSection();
+    checkAndAttachMenuListeners();
+    monitorPinnedSection();
+  }, POLLING_INTERVAL);
+
+  console.log(`Started polling every ${POLLING_INTERVAL}ms`);
+}
+
+// Initialize polling after DOM is fully loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializePolling);
+} else {
+  initializePolling();
+}
+
+// Optional: Initial check in case elements are already present
+initializePolling();
 
 
 // Function to add the pinned section (if not already added)
